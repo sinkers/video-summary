@@ -6,12 +6,13 @@ import argparse
 from frame_differencing import capture_slides_frame_diff
 from post_process import remove_duplicates
 from utils import resize_image_frame, create_output_directory, convert_slides_to_pdf
+import helpers
 
 
 # -------------- Initializations ---------------------
 
 FRAME_BUFFER_HISTORY = 15   # Length of the frame buffer history to model background.
-DEC_THRESH = 0.75           # Threshold value, above which it is marked foreground, else background.
+DEC_THRESH = 0.90           # Threshold value, above which it is marked foreground, else background.
 DIST_THRESH = 100           # Threshold on the squared distance between the pixel and the sample to decide whether a pixel is close to that sample.
 
 MIN_PERCENT = 0.15          # %age threshold to check if there is motion across subsequent frames
@@ -38,6 +39,8 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
 
     # Capture video frames.
     cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print("Source fps %.3f" % fps)
 
     if not cap.isOpened():
         print('Unable to open video file: ', video_path)
@@ -45,6 +48,8 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
      
     
     start = time.time()
+    frame_count = 0
+    last_scene_start = 0
     # Loop over subsequent frames.
     while cap.isOpened():
         
@@ -52,7 +57,8 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
 
         if not ret:
             break
-
+        
+        
         # Create a copy of the original frame.
         orig_frame = frame.copy() 
         # Resize the frame keeping aspect ratio.
@@ -60,6 +66,11 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
 
         # Apply each frame through the background subtractor.
         fg_mask = bg_sub.apply(frame) 
+
+        # For demo purposes write out the bg subtractions
+        #png_filename = f"{frame_count:04}.png"
+        #out_file_path = os.path.join(output_dir_path, png_filename)
+        #cv2.imwrite(out_file_path, fg_mask)
 
         # Compute the percentage of the Foreground mask."
         p_non_zero = (cv2.countNonZero(fg_mask) / (1.0 * fg_mask.size)) * 100
@@ -71,7 +82,12 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
 
             screenshots_count += 1
             
-            png_filename = f"{screenshots_count:03}.png"
+            print("Duration of screenshot %.3f (%.3f - %.3f)" % (helpers.get_duration_ms(fps, frame_count) - helpers.get_duration_ms(fps, last_scene_start), helpers.get_duration_ms(fps, last_scene_start), helpers.get_duration_ms(fps, frame_count)))
+            # https://docs.opencv.org/4.x/d4/d15/group__videoio__flags__base.html#ggaeb8dd9c89c10a5c63c139bf7c4f5704daf01bc92359d2abc9e6eeb5cbe36d9af2
+            print("Duration through clip %.3f" % cap.get(cv2.CAP_PROP_POS_MSEC))
+            # Write out the filename including the frame range that covers
+            png_filename = f"{screenshots_count:03}_{last_scene_start}-{frame_count}.png"
+            last_scene_start = frame_count
             out_file_path = os.path.join(output_dir_path, png_filename)
             print(f"Saving file at: {out_file_path}")
             cv2.imwrite(out_file_path, orig_frame)
@@ -81,6 +97,14 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
         # Hence wait till the motion across subsequent frames has settled down.
         elif capture_frame and p_non_zero >= MIN_PERCENT_THRESH:
             capture_frame = False
+
+        
+        frame_count += 1
+
+        # For testing exit after x ms
+        mins = 6
+        if float(cap.get(cv2.CAP_PROP_POS_MSEC)) > (mins * 60 * 1000.0):
+            break
 
 
     end_time = time.time()
