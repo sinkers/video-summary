@@ -102,9 +102,9 @@ def capture_slides_bg_modeling(video_path, output_dir_path, type_bgsub, history,
         frame_count += 1
 
         # For testing exit after x ms
-        mins = 6
-        if float(cap.get(cv2.CAP_PROP_POS_MSEC)) > (mins * 60 * 1000.0):
-            break
+        #mins = 6
+        #if float(cap.get(cv2.CAP_PROP_POS_MSEC)) > (mins * 60 * 1000.0):
+        #    break
 
 
     end_time = time.time()

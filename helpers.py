@@ -23,28 +23,8 @@ def srt_get_time_range(srt_file, start_time, end_time):
            #print("%s %s" % (sub.start, sub.text))
    return return_text
 
-def get_chatgpt_summary(text):
-    return openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-0301",
-        messages=[
-            { 
-                "role": "user", 
-                "content": f"Summarize this into 5 dot points: {text}"
-            }
-            ],
-        temperature=0,
-        max_tokens=256
-    )
 
 
-# This is just here for testing purposes at the moment needs to be broken out
-def main():
-    start = pysrt.SubRipTime(hours=0, minutes=1, seconds=45)
-    end = pysrt.SubRipTime(hours=0, minutes=6, seconds=30)
-    print(start)
-    text = srt_get_time_range("files/allhands_subtitles.srt",start, end)
-    print(text)
-    print("Words: %d" % len(text.split(" ")))
 
-    print(get_chatgpt_summary(text))
+
 
